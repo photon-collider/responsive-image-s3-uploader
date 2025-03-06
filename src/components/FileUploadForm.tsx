@@ -1,9 +1,13 @@
-import React, { useState, useRef } from 'react';
-import { Button } from '@components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@components/ui/card';
-import { Input } from '@components/ui/input';
-import { Label } from '@components/ui/label';
-import { Textarea } from '@components/ui/textarea';
+import React, { useState, useRef, useEffect } from 'react';
+import { Button } from './ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Textarea } from './ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { Loader2 } from 'lucide-react';
+
 interface UploadResult {
   originalUrl: string;
   responsiveUrls: {
@@ -21,8 +25,46 @@ const FileUploadForm: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
+  const [folders, setFolders] = useState<string[]>([]);
+  const [isLoadingFolders, setIsLoadingFolders] = useState<boolean>(false);
+  const [folderOption, setFolderOption] = useState<'existing' | 'new'>('existing');
+  const [selectedExistingFolder, setSelectedExistingFolder] = useState<string>('');
+  const [newFolderName, setNewFolderName] = useState<string>('');
   
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Fetch folders on component mount
+  useEffect(() => {
+    const fetchFolders = async () => {
+      setIsLoadingFolders(true);
+      try {
+        const response = await fetch('/api/folders');
+        const data = await response.json();
+        
+        if (data.success && Array.isArray(data.folders)) {
+          setFolders(data.folders);
+          
+          // Set the first folder as selected if there are any
+          if (data.folders.length > 0) {
+            setSelectedExistingFolder(data.folders[0]);
+          } else {
+            // If no folders, default to creating a new one
+            setFolderOption('new');
+          }
+        } else {
+          throw new Error(data.error || 'Failed to fetch folders');
+        }
+      } catch (err) {
+        console.error('Error fetching folders:', err);
+        setError('Failed to load folders. You can still create a new folder.');
+        setFolderOption('new');
+      } finally {
+        setIsLoadingFolders(false);
+      }
+    };
+    
+    fetchFolders();
+  }, []);
 
   const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -79,9 +121,21 @@ const FileUploadForm: React.FC = () => {
       return;
     }
     
-    if (!folderName.trim()) {
-      setError('Please provide a folder name');
-      return;
+    // Determine the folder name based on selection
+    let targetFolderName = '';
+    
+    if (folderOption === 'existing') {
+      if (!selectedExistingFolder) {
+        setError('Please select a folder');
+        return;
+      }
+      targetFolderName = selectedExistingFolder;
+    } else {
+      if (!newFolderName.trim()) {
+        setError('Please provide a new folder name');
+        return;
+      }
+      targetFolderName = newFolderName.trim();
     }
     
     if (!altText.trim()) {
@@ -95,7 +149,7 @@ const FileUploadForm: React.FC = () => {
     try {
       const formData = new FormData();
       formData.append('image', selectedFile);
-      formData.append('folderName', folderName);
+      formData.append('folderName', targetFolderName);
       formData.append('altText', altText);
       
       const response = await fetch('/api/upload', {
@@ -114,10 +168,15 @@ const FileUploadForm: React.FC = () => {
       
       // Reset form after successful upload
       setSelectedFile(null);
-      setFolderName('');
+      setNewFolderName('');
       setAltText('');
       if (inputRef.current) {
         inputRef.current.value = '';
+      }
+      
+      // If a new folder was created, add it to the folders list
+      if (folderOption === 'new' && !folders.includes(targetFolderName)) {
+        setFolders([...folders, targetFolderName]);
       }
     } catch (err) {
       setError('Error uploading file. Please try again.');
@@ -130,18 +189,26 @@ const FileUploadForm: React.FC = () => {
   const resetForm = () => {
     setUploadResult(null);
     setSelectedFile(null);
-    setFolderName('');
+    setNewFolderName('');
     setAltText('');
     setError(null);
     if (inputRef.current) {
       inputRef.current.value = '';
+    }
+    
+    // Reset to default folder option
+    if (folders.length > 0) {
+      setFolderOption('existing');
+      setSelectedExistingFolder(folders[0]);
+    } else {
+      setFolderOption('new');
     }
   };
 
   // Render the results after successful upload
   if (uploadResult) {
     return (
-      <Card className="w-full max-w-md">
+      <Card className="w-full">
         <CardHeader>
           <CardTitle>Upload Successful!</CardTitle>
           <CardDescription>
@@ -221,18 +288,76 @@ const FileUploadForm: React.FC = () => {
       </CardHeader>
       
       <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-6">
-          {/* Folder Name Input */}
-          <div className="space-y-2">
-            <Label htmlFor="folderName">Folder Name</Label>
-            <Input 
-              id="folderName"
-              type="text"
-              value={folderName}
-              onChange={(e) => setFolderName(e.target.value)}
-              placeholder="e.g., blog-images/2023/post-1"
-              required
-            />
+        <CardContent className="space-y-4">
+          {/* Folder Selection */}
+          <div className="space-y-3">
+            <div className="mb-2">
+              <Label className="mb-2">Folder Options</Label>
+              <RadioGroup 
+                value={folderOption} 
+                onValueChange={(value) => setFolderOption(value as 'existing' | 'new')}
+                className="mt-2"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="existing" id="existing" disabled={folders.length === 0 || isLoadingFolders} />
+                  <Label htmlFor="existing" className={`${folders.length === 0 && !isLoadingFolders ? 'opacity-50' : ''}`}>
+                    Select Existing Folder {isLoadingFolders && <Loader2 className="inline-block ml-2 h-4 w-4 animate-spin" />}
+                  </Label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="new" id="new" />
+                  <Label htmlFor="new">Create New Folder</Label>
+                </div>
+              </RadioGroup>
+            </div>
+            
+            {folderOption === 'existing' && (
+              <div className="space-y-2">
+                <Label htmlFor="existingFolder">Select Folder</Label>
+                {isLoadingFolders ? (
+                  <div className="flex items-center space-x-2 py-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm text-muted-foreground">Loading folders...</span>
+                  </div>
+                ) : folders.length === 0 ? (
+                  <div className="text-sm text-muted-foreground py-2">
+                    No folders found. Please create a new folder.
+                  </div>
+                ) : (
+                  <Select 
+                    value={selectedExistingFolder} 
+                    onValueChange={setSelectedExistingFolder}
+                  >
+                    <SelectTrigger id="existingFolder">
+                      <SelectValue placeholder="Select a folder" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {folders.map((folder) => (
+                        <SelectItem key={folder} value={folder}>{folder}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
+            
+            {folderOption === 'new' && (
+              <div className="space-y-2">
+                <Label htmlFor="newFolderName">New Folder Name</Label>
+                <Input 
+                  id="newFolderName"
+                  type="text"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  placeholder="e.g., blog-images"
+                  required={folderOption === 'new'}
+                />
+                <p className="text-xs text-muted-foreground">
+                  This will create a new top-level folder in your bucket
+                </p>
+              </div>
+            )}
           </div>
           
           {/* Alt Text Input */}
@@ -312,7 +437,7 @@ const FileUploadForm: React.FC = () => {
         <CardFooter>
           <Button 
             type="submit"
-            className="w-full mt-4"
+            className="w-full"
             disabled={isUploading || !selectedFile}
           >
             {isUploading ? 'Uploading...' : 'Upload'}
