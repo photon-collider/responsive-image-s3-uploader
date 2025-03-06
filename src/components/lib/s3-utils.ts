@@ -21,10 +21,17 @@ const s3PublicUrl = import.meta.env.S3_PUBLIC_URL as string; // Public URL for a
 
 // Define responsive image sizes (by long edge)
 const sizes = [
-  { longEdge: 640, suffix: "sm" },
-  { longEdge: 1024, suffix: "md" },
-  { longEdge: 1920, suffix: "lg" },
-  { longEdge: 2560, suffix: "xl" },
+  { longEdge: 400, suffix: "thumbnail" },
+  { longEdge: 600, suffix: "sm" },
+  { longEdge: 1200, suffix: "md" },
+  { longEdge: 1800, suffix: "lg" },
+];
+
+// Define output formats
+const formats = [
+  { format: "jpeg", extension: "jpg", contentType: "image/jpeg" },
+  { format: "avif", extension: "avif", contentType: "image/avif" },
+  { format: "jxl", extension: "jxl", contentType: "image/jxl" },
 ];
 
 // Create S3 client for any S3-compatible storage
@@ -43,7 +50,13 @@ const s3Client = new S3Client({
 export interface UploadResult {
   originalUrl: string;
   responsiveUrls: {
-    [key: string]: string;
+    [key: string]: string; // size suffix -> URL
+  };
+  formatUrls: {
+    [key: string]: {
+      // format name
+      [key: string]: string; // size suffix -> URL
+    };
   };
   altText: string;
   folderName: string;
@@ -131,8 +144,8 @@ export async function uploadResponsiveImage(
     const timestamp = Date.now();
     const uniqueFilename = `${baseFilename}-${timestamp}`;
 
-    // Upload original image
-    const originalKey = `${folderName}/${uniqueFilename}${fileExt}`;
+    // Upload original image unchanged
+    const originalKey = `${folderName}/${uniqueFilename}-original${fileExt}`;
     await s3Client.send(
       new PutObjectCommand({
         Bucket: bucketName || s3BucketName,
@@ -149,8 +162,13 @@ export async function uploadResponsiveImage(
     const height = metadata.height || 0;
     const isPortrait = height > width;
 
-    // Create responsive versions
+    // Create responsive versions in original format
     const responsiveUrls: { [key: string]: string } = {};
+
+    // Original unchanged URL
+    responsiveUrls["original"] = `${s3PublicUrl}/${originalKey}`;
+
+    // Add standard responsive versions in original format (usually JPEG)
     for (const size of sizes) {
       // Resize based on the long edge while maintaining aspect ratio
       const resizeOptions = isPortrait
@@ -176,6 +194,43 @@ export async function uploadResponsiveImage(
       responsiveUrls[size.suffix] = `${s3PublicUrl}/${responsiveKey}`;
     }
 
+    // Process and upload in different formats
+    const formatUrls: { [format: string]: { [size: string]: string } } = {};
+
+    for (const formatInfo of formats) {
+      formatUrls[formatInfo.format] = {};
+
+      // For each format, create all defined sizes
+      for (const size of sizes) {
+        // Resize based on the long edge while maintaining aspect ratio
+        const resizeOptions = isPortrait
+          ? { height: size.longEdge, fit: "inside" as const }
+          : { width: size.longEdge, fit: "inside" as const };
+
+        // Convert to the target format
+        const convertedBuffer = await sharp(imageBuffer)
+          .resize(resizeOptions)
+          .toFormat(formatInfo.format as keyof sharp.FormatEnum)
+          .toBuffer();
+
+        const formatKey = `${folderName}/${uniqueFilename}-${size.suffix}.${formatInfo.extension}`;
+
+        await s3Client.send(
+          new PutObjectCommand({
+            Bucket: bucketName || s3BucketName,
+            Key: formatKey,
+            Body: convertedBuffer,
+            ContentType: formatInfo.contentType,
+            ACL: "public-read",
+          })
+        );
+
+        formatUrls[formatInfo.format][
+          size.suffix
+        ] = `${s3PublicUrl}/${formatKey}`;
+      }
+    }
+
     // Save alt text to a file
     const altTextKey = `${folderName}/${uniqueFilename}.txt`;
     await s3Client.send(
@@ -191,6 +246,7 @@ export async function uploadResponsiveImage(
     return {
       originalUrl: `${s3PublicUrl}/${originalKey}`,
       responsiveUrls,
+      formatUrls,
       altText,
       folderName,
       bucketName: bucketName || s3BucketName,
