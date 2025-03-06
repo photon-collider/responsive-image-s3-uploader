@@ -515,6 +515,7 @@ const FileUploadForm: React.FC = () => {
                 variant="outline" 
                 size="sm"
                 onClick={() => inputRef.current?.click()}
+                className='cursor-pointer'
               >
                 Select Image
               </Button>
@@ -527,7 +528,7 @@ const FileUploadForm: React.FC = () => {
           )}
         </CardContent>
         
-        <CardFooter>
+        <CardFooter className='mt-4'>
           <Button 
             type="submit"
             className="w-full"
