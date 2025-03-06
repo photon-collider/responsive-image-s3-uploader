@@ -1,10 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { Button } from './ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Textarea } from './ui/textarea';
-
+import { Button } from '@components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@components/ui/card';
+import { Input } from '@components/ui/input';
+import { Label } from '@components/ui/label';
+import { Textarea } from '@components/ui/textarea';
 interface UploadResult {
   originalUrl: string;
   responsiveUrls: {
@@ -213,7 +212,7 @@ const FileUploadForm: React.FC = () => {
 
   // Render the upload form
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full">
       <CardHeader>
         <CardTitle>Upload Responsive Image</CardTitle>
         <CardDescription>
@@ -222,7 +221,7 @@ const FileUploadForm: React.FC = () => {
       </CardHeader>
       
       <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           {/* Folder Name Input */}
           <div className="space-y-2">
             <Label htmlFor="folderName">Folder Name</Label>
@@ -313,7 +312,7 @@ const FileUploadForm: React.FC = () => {
         <CardFooter>
           <Button 
             type="submit"
-            className="w-full"
+            className="w-full mt-4"
             disabled={isUploading || !selectedFile}
           >
             {isUploading ? 'Uploading...' : 'Upload'}
