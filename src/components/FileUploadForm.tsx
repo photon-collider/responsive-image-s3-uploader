@@ -288,10 +288,10 @@ const FileUploadForm: React.FC = () => {
       </CardHeader>
       
       <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-5">
           {/* Folder Selection */}
-          <div className="space-y-3">
-            <div className="mb-2">
+          <div className="space-y-2">
+            <div>
               <Label className="mb-2">Folder Options</Label>
               <RadioGroup 
                 value={folderOption} 
