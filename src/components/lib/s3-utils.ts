@@ -17,7 +17,10 @@ const s3Region = import.meta.env.S3_REGION as string; // e.g., 'auto' for Cloudf
 const s3AccessKeyId = import.meta.env.S3_ACCESS_KEY_ID as string;
 const s3SecretAccessKey = import.meta.env.S3_SECRET_ACCESS_KEY as string;
 const s3BucketName = import.meta.env.S3_BUCKET_NAME as string;
+const s3OriginalBucketName =
+  import.meta.env.S3_ORIGINAL_BUCKET_NAME || ("original-images" as string);
 const s3PublicUrl = import.meta.env.S3_PUBLIC_URL as string; // Public URL for accessing objects
+// No need for original public URL as originals will be private
 
 // Define responsive image sizes (by long edge)
 const sizes = [
@@ -30,8 +33,7 @@ const sizes = [
 // Define output formats
 const formats = [
   { format: "jpeg", extension: "jpg", contentType: "image/jpeg" },
-  { format: "avif", extension: "avif", contentType: "image/avif" },
-  { format: "jxl", extension: "jxl", contentType: "image/jxl" },
+  //   { format: "avif", extension: "avif", contentType: "image/avif" },
 ];
 
 // Create S3 client for any S3-compatible storage
@@ -48,7 +50,8 @@ const s3Client = new S3Client({
 
 // Interface for upload results
 export interface UploadResult {
-  originalUrl: string;
+  originalKey: string;
+  originalBucket: string;
   responsiveUrls: {
     [key: string]: string; // size suffix -> URL
   };
@@ -138,21 +141,20 @@ export async function uploadResponsiveImage(
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "image-upload-"));
 
   try {
-    // Get file extension and generate a unique filename
+    // Get file extension and generate filename
     const fileExt = path.extname(originalFilename).toLowerCase();
     const baseFilename = path.basename(originalFilename, fileExt);
-    const timestamp = Date.now();
-    const uniqueFilename = `${baseFilename}-${timestamp}`;
+    const uniqueFilename = baseFilename;
 
-    // Upload original image unchanged
+    // Upload original image unchanged to a separate bucket (private access)
     const originalKey = `${folderName}/${uniqueFilename}-original${fileExt}`;
     await s3Client.send(
       new PutObjectCommand({
-        Bucket: bucketName || s3BucketName,
+        Bucket: s3OriginalBucketName,
         Key: originalKey,
         Body: imageBuffer,
         ContentType: `image/${fileExt.substring(1)}`,
-        ACL: "public-read",
+        // No ACL specified, defaults to private
       })
     );
 
@@ -164,9 +166,6 @@ export async function uploadResponsiveImage(
 
     // Create responsive versions in original format
     const responsiveUrls: { [key: string]: string } = {};
-
-    // Original unchanged URL
-    responsiveUrls["original"] = `${s3PublicUrl}/${originalKey}`;
 
     // Add standard responsive versions in original format (usually JPEG)
     for (const size of sizes) {
@@ -231,8 +230,8 @@ export async function uploadResponsiveImage(
       }
     }
 
-    // Save alt text to a file
-    const altTextKey = `${folderName}/${uniqueFilename}.txt`;
+    // Save alt text to a file with _alt.txt suffix
+    const altTextKey = `${folderName}/${uniqueFilename}_alt.txt`;
     await s3Client.send(
       new PutObjectCommand({
         Bucket: bucketName || s3BucketName,
@@ -244,7 +243,8 @@ export async function uploadResponsiveImage(
     );
 
     return {
-      originalUrl: `${s3PublicUrl}/${originalKey}`,
+      originalKey: originalKey,
+      originalBucket: s3OriginalBucketName,
       responsiveUrls,
       formatUrls,
       altText,

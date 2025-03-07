@@ -23,7 +23,11 @@ interface UploadResult {
   bucketName: string;
 }
 
-const FileUploadForm: React.FC = () => {
+interface Props {
+  originalBucket: string
+}
+
+const FileUploadForm: React.FC<Props> = ({originalBucket}) => {
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [altText, setAltText] = useState<string>('');
@@ -53,12 +57,14 @@ const FileUploadForm: React.FC = () => {
         const response = await fetch('/api/buckets');
         const data = await response.json();
         
+        const allowedBuckets = data.buckets.filter((bucket: any) => bucket.name != originalBucket)
+
         if (data.success && Array.isArray(data.buckets)) {
-          setBuckets(data.buckets);
+          setBuckets(allowedBuckets);
           
           // Set the first bucket as selected if there are any
-          if (data.buckets.length > 0) {
-            setSelectedBucket(data.buckets[0].name);
+          if (allowedBuckets.length > 0) {
+            setSelectedBucket(allowedBuckets[0].name);
           }
         } else {
           throw new Error(data.error || 'Failed to fetch buckets');

@@ -2,6 +2,7 @@
 import Layout from "../layouts/Layout.astro";
 import FileUploadForm from "../components/FileUploadForm";
 import "@/styles/globals.css";
+const s3OriginalBucketName = import.meta.env.S3_ORIGINAL_BUCKET_NAME;
 ---
 
 <Layout title="Responsive Image Uploader">
@@ -9,7 +10,7 @@ import "@/styles/globals.css";
     <h1 class="text-3xl font-bold mb-8">Responsive Image Uploader</h1>
 
     <div class="flex flex-col items-center">
-      <FileUploadForm client:load />
+      <FileUploadForm originalBucket={s3OriginalBucketName} client:load />
     </div>
   </main>
 </Layout>
