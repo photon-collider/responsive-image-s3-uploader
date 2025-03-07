@@ -141,6 +141,8 @@ export async function uploadResponsiveImage(
   const { default: os } = await osModule();
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "image-upload-"));
 
+  const copyright = "copyright_bryan_anthonio";
+
   try {
     // Get file extension and generate filename
     const fileExt = path.extname(originalFilename).toLowerCase();
@@ -179,7 +181,7 @@ export async function uploadResponsiveImage(
         .resize(resizeOptions)
         .toBuffer();
 
-      const responsiveKey = `${folderName}/copyright_bryan_anthonio_${uniqueFilename}-${size.suffix}${fileExt}`;
+      const responsiveKey = `${folderName}/${copyright}_${uniqueFilename}-${size.suffix}${fileExt}`;
 
       await s3Client.send(
         new PutObjectCommand({
@@ -213,7 +215,7 @@ export async function uploadResponsiveImage(
           .toFormat(formatInfo.format as keyof sharp.FormatEnum)
           .toBuffer();
 
-        const formatKey = `${folderName}/${uniqueFilename}-${size.suffix}.${formatInfo.extension}`;
+        const formatKey = `${folderName}/${copyright}_${uniqueFilename}-${size.suffix}.${formatInfo.extension}`;
 
         await s3Client.send(
           new PutObjectCommand({
@@ -232,7 +234,7 @@ export async function uploadResponsiveImage(
     }
 
     // Save alt text to a file with _alt.txt suffix
-    const altTextKey = `${folderName}/${uniqueFilename}_alt.txt`;
+    const altTextKey = `${folderName}/${copyright}_${uniqueFilename}_alt.txt`;
     await s3Client.send(
       new PutObjectCommand({
         Bucket: bucketName || s3BucketName,
