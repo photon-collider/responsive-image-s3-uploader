@@ -26,8 +26,9 @@ const s3PublicUrl = import.meta.env.S3_PUBLIC_URL as string; // Public URL for a
 const sizes = [
   { longEdge: 400, suffix: "thumbnail" },
   { longEdge: 600, suffix: "sm" },
-  { longEdge: 1200, suffix: "md" },
-  { longEdge: 1800, suffix: "lg" },
+  { longEdge: 900, suffix: "md" },
+  { longEdge: 1200, suffix: "lg" },
+  { longEdge: 1800, suffix: "xl" },
 ];
 
 // Define output formats
