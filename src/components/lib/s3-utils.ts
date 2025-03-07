@@ -179,7 +179,7 @@ export async function uploadResponsiveImage(
         .resize(resizeOptions)
         .toBuffer();
 
-      const responsiveKey = `${folderName}/${uniqueFilename}-${size.suffix}${fileExt}`;
+      const responsiveKey = `${folderName}/copyright_bryan_anthonio_${uniqueFilename}-${size.suffix}${fileExt}`;
 
       await s3Client.send(
         new PutObjectCommand({
