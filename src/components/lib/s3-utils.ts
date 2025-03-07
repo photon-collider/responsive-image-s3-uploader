@@ -24,11 +24,11 @@ const s3PublicUrl = import.meta.env.S3_PUBLIC_URL as string; // Public URL for a
 
 // Define responsive image sizes (by long edge)
 const sizes = [
-  { longEdge: 400, suffix: "thumbnail" },
-  { longEdge: 600, suffix: "sm" },
-  { longEdge: 900, suffix: "md" },
-  { longEdge: 1200, suffix: "lg" },
-  { longEdge: 1800, suffix: "xl" },
+  { longEdge: 400, suffix: "400" },
+  { longEdge: 600, suffix: "600" },
+  { longEdge: 900, suffix: "900" },
+  { longEdge: 1200, suffix: "1200" },
+  { longEdge: 1800, suffix: "1800" },
 ];
 
 // Define output formats
